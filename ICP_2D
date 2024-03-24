@@ -1,0 +1,73 @@
+#2DICP
+import numpy as np
+from scipy.spatial import KDTree
+
+def icp_2d(X, Y, max_iterations=100, tolerance=1e-5):
+    """
+    Perform ICP (Iterative Closest Point) algorithm in 2D.
+
+    Parameters:
+    X : numpy.ndarray
+        The source point set (N x 2).
+    Y : numpy.ndarray
+        The target point set (N x 2).
+    max_iterations : int, optional
+        Maximum number of iterations. Default is 100.
+    tolerance : float, optional
+        Convergence criteria. Default is 1e-5.
+
+    Returns:
+    R : numpy.ndarray
+        The rotation matrix (2 x 2).
+    T : numpy.ndarray
+        The translation vector (2,).
+    """
+    # Initialize transformation
+    R = np.eye(2)
+    T = np.zeros(2)
+
+    for _ in range(max_iterations):
+        # Find nearest neighbors
+        tree = KDTree(Y)
+        distances, indices = tree.query(X)
+
+        # Compute centroid
+        X_centroid = np.mean(X, axis=0)
+        Y_centroid = np.mean(Y[indices], axis=0)
+
+        # Compute covariance matrix
+        H = np.dot((X - X_centroid).T, (Y[indices] - Y_centroid))
+
+        # Singular Value Decomposition
+        U, _, Vt = np.linalg.svd(H)
+
+        # Calculate rotation matrix
+        R = np.dot(U, Vt)
+
+        # Calculate translation vector
+        T = Y_centroid - np.dot(R, X_centroid)
+
+        # Apply transformation to source points
+        X_transformed = np.dot(X, R.T) + T
+
+        # Check convergence
+        if np.all(np.abs(X_transformed - Y[indices]) < tolerance):
+            break
+
+        # Update source points
+        X = X_transformed
+
+    return R, T
+
+# Example usage
+# Define source and target point sets
+X = np.loadtxt("keypoints_img1.xy")
+Y = np.loadtxt("keypoints_img2.xy")
+
+# Run ICP
+R, T = icp_2d(X, Y)
+
+print("Rotation matrix:")
+print(R)
+print("Translation vector:")
+print(T)
