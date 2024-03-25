@@ -1,0 +1,60 @@
+import cv2
+import os
+
+image_folder = "UAV_path"
+image_folder2 = "output_frames"
+
+image_files = [os.path.join(image_folder, file) for file in os.listdir(image_folder) if os.path.isfile(os.path.join(image_folder, file))]
+image_files2 = [os.path.join(image_folder2, file) for file in os.listdir(image_folder2) if os.path.isfile(os.path.join(image_folder2, file))]
+
+# 螢幕寬度為1920
+screen_width = 1920  
+
+# 移動到左半螢幕
+cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
+cv2.moveWindow('Image', 0, 0)
+# 移動動右半螢幕
+cv2.namedWindow('Image2', cv2.WINDOW_NORMAL)
+cv2.moveWindow('Image2', 960, 0)
+
+
+for i in range(0,26):
+    image = cv2.imread(f'UAV_path/path_{i}.jpg',1)
+    # 取得影像的寬度和高度，計算影像的長寬比
+    height, width, _ = image.shape
+    aspect_ratio = width / height
+
+    # 將影像寬度調整為螢幕寬度的一半，高度按比例縮放
+    new_width = screen_width // 2
+    new_height = int(new_width / aspect_ratio)
+    # 縮放圖像大小
+    resized_image = cv2.resize(image, (new_width, new_height))
+    image_name = os.path.basename(f'UAV_path/path_{i}.jpg')
+    # 在視窗中顯示影像名稱顯示縮放後的圖片
+    cv2.setWindowTitle('Image', image_name)
+    cv2.imshow('Image', resized_image)
+
+
+    image2 = cv2.imread(f'output_frames/frame_{i}.jpg',1)
+    if image2 is None:
+        print(f"Unable to read image: output_frames/frame_{i}.jpg")
+        continue
+    # 获取图像的宽度和高度，計算影像的長寬比
+    height2, width2, _ = image2.shape
+    aspect_ratio2 = width2 / height2
+
+    # 將影像寬度調整為螢幕寬度的一半，高度按比例縮放
+    new_height2 = int(new_width / aspect_ratio2)
+    resized_image2 = cv2.resize(image2, (new_width, new_height2))
+    # 獲得名字
+    image_name2 = os.path.basename(f'output_frames/frame_{i}.jpg')
+    # 顯示圖像名稱
+    cv2.setWindowTitle('Image2', image_name2)
+    cv2.imshow('Image2', resized_image2)
+    # 等待0.4秒
+    cv2.waitKey(400)
+    
+print(aspect_ratio)
+print(aspect_ratio2)
+cv2.destroyAllWindows()
+
