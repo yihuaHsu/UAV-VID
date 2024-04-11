@@ -1,4 +1,4 @@
-#2024/04/02
+#2024/04/11
 import cv2
 import numpy as np
 import os
@@ -8,77 +8,9 @@ import open3d as o3d
 import math
 
 
-
-def icp_2d(X, Y, max_iterations=100, tolerance=1e-5):
-    """
-    Perform ICP (Iterative Closest Point) algorithm in 2D.
-
-    Parameters:
-    X : numpy.ndarray
-        The source point set (N x 2).
-    Y : numpy.ndarray
-        The target point set (N x 2).
-    max_iterations : int, optional
-        Maximum number of iterations. Default is 100.
-    tolerance : float, optional
-        Convergence criteria. Default is 1e-5.
-
-    Returns:
-    R : numpy.ndarray
-        The rotation matrix (2 x 2).
-    T : numpy.ndarray
-        The translation vector (2,).
-    """
-    # Initialize transformation
-    R = np.eye(2)
-    T = np.zeros(2)
-
-    for _ in range(max_iterations):
-        # Find nearest neighbors
-        tree = KDTree(Y)
-        distances, indices = tree.query(X)
-
-        # Compute centroid
-        X_centroid = np.mean(X, axis=0)
-        Y_centroid = np.mean(Y[indices], axis=0)
-
-        # Compute covariance matrix
-        H = np.dot((X - X_centroid).T, (Y[indices] - Y_centroid))
-
-        # Singular Value Decomposition
-        U, _, Vt = np.linalg.svd(H)
-
-        # Calculate rotation matrix
-        R = np.dot(U, Vt)
-
-        # Calculate translation vector
-        T = Y_centroid - np.dot(R, X_centroid)
-
-        # Apply transformation to source points
-        X_transformed = np.dot(X, R.T) + T
-
-        # Check convergence
-        if np.all(np.abs(X_transformed - Y[indices]) < tolerance):
-            break
-
-        # Update source points
-        X = X_transformed
-
-    return R, T
-
-def save_xy_file(point_cloud, filename):
-    # 提取点云数据的 x 和 y 坐标
-    points_xy = np.asarray(point_cloud.points)[:, :2]
-
-    # 将点云数据保存到 .xy 文件
-    with open(filename, "w") as file:
-        for point in points_xy:
-            # 将每个点的 x、y 坐标写入文件，每行一个点
-            file.write(f"{point[0]} {point[1]}\n")
-
-def video_screen_shot():
-    video_file = 'book-test-rotate/book-video.mp4'   # 输入影片檔案名稱
-    output_folder = 'output_frames-book'   # 输出資料夾名稱
+def video_screen_shot(video_file,output_folder):
+    # video_file = '14/dav/14/14-1-4.mp4'   # 输入影片檔案名稱
+    # output_folder = 'output_frames'   # 输出資料夾名稱
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -89,7 +21,7 @@ def video_screen_shot():
         return
 
     fps = cap.get(cv2.CAP_PROP_FPS)    # 取得影片幀率
-    frame_interval = int(fps * 0.5)
+    frame_interval = int(fps * 3)
 
     frame_count = 0
     total_frames = 0
@@ -107,30 +39,8 @@ def video_screen_shot():
         frame_count += 1
     cap.release()
     print('Video frames extraction completed.')
+    return total_frames
 
-# def MAP_Magnification():
-#     for kp in kp1:  #大地圖中最遠點與平均座標的距離
-#         img_keypoints.append(kp.pt)
-#
-#     # 計算影像 img 的平均特徵點
-#     img_average_point = np.mean(img_keypoints, axis=0)
-#
-#     print("影像 img 的平均特徵點:", img_average_point)
-#
-#     # 初始化最大距離為負無窮大
-#     max_distance = float('-inf')
-#     farthest_point = None
-#
-#     # 找出距離平均特徵點最遠的特徵點
-#     for kp in img_keypoints:
-#         distance = np.linalg.norm(np.array(kp) - img_average_point)
-#         if distance > max_distance:
-#             max_distance = distance
-#             farthest_point = kp
-#
-#     print("img影像中距離平均特徵點最遠的特徵點:", farthest_point)
-#     print("距離:", max_distance)
-#     print("縮放比例:", distance3 / max_distance)
 
 def rotate_point(x, y, cx, cy, angle):
     # Convert angle to radians
@@ -141,7 +51,7 @@ def rotate_point(x, y, cx, cy, angle):
     return x_rotated, y_rotated
 
 
-folder_name = "UAV_path-book"  # 定義文件夾名稱
+folder_name = "UAV_path"  # 定義文件夾名稱
 current_dir = os.path.dirname(os.path.realpath(__file__))
 folder_path = os.path.join(current_dir, folder_name)   # 使用os.path.join連接路径和文件夾名稱
 if not os.path.exists(folder_path):   # 檢查是否存在
@@ -151,11 +61,15 @@ else:
     print(f"文件夾 '{folder_path}' 已存在。")
 
 
+# -------------------------------------------------------
 
-video_screen_shot()
+video_file_name = '14/dav/14/14-1-4.mp4'
+output_folder_name = 'output_frames'
+big_map_img = '14/jpg/14/23/23-1.jpg'
+total_frames = video_screen_shot(video_file_name,output_folder_name)
 
 MIN_MATCH_COUNT = 10
-img3 = cv2.imread('book-test-rotate/book-test-01.jpg', 1) # trainImage
+img3 = cv2.imread(big_map_img, 1) # trainImage
 sift = cv2.SIFT_create() # 初始化 SIFT 檢測器
 
 kp3, des3 = sift.detectAndCompute(img3, None) # 使用 SIFT 找到img3的關鍵點和描述子
@@ -178,10 +92,10 @@ farthest_keypoints_in_boxes = []  # 儲存每個方框內距離平均特徵點�
 distances = []  # 儲存每個方框內最遠特徵點與平均特徵點之間的距離
 img_keypoints = []  # 儲存影像 img 的所有特徵點座標
 total_path = 0
-frame_count = 37
+frame_count = 40
 
-for i in range(0, frame_count):
-    img = cv2.imread(f'output_frames-book/frame_{i}.jpg', 1)  # queryImage
+for i in range(0, total_frames):
+    img = cv2.imread(f'output_frames/frame_{i}.jpg', 1)  # queryImage
     # 使用 SIFT 找到關鍵點和描述子
     kp1, des1 = sift.detectAndCompute(img, None)
     # 進行特徵匹配
@@ -225,22 +139,6 @@ for i in range(0, frame_count):
         target_points.append(dst_pts.squeeze())
         all_boxes.append(np.int32(dst))
         box_keypoints = []
-        # for kp in kp1: #局部影像的最遠點與平均座標距離
-        #     kp_pt = np.array(kp.pt)
-        #     if cv.pointPolygonTest(np.array(dst), kp_pt, False) >= 0:
-        #         box_keypoints.append(kp.pt)
-        # box_keypoints = np.array(box_keypoints)
-        # avg_keypoint = np.mean(box_keypoints, axis=0)
-        # farthest_keypoint = box_keypoints[np.argmax(np.linalg.norm(box_keypoints - avg_keypoint, axis=1))]
-        # farthest_keypoints_in_boxes.append(farthest_keypoint)
-        # # 計算最遠特徵點與平均特徵點之間的距離
-        # distance3 = np.linalg.norm(farthest_keypoint - avg_keypoint)
-        # distances.append(distance3)
-        # print(f"方框 {i} 的平均特徵點: {avg_keypoint}")
-        # print(f"方框 {i}內距離平均特徵點最遠的特徵點: {farthest_keypoint}")
-        # print(f"方框{i} 距離3:{distance3}")
-
-        # MAP_Magnification()
 
         point_cloud = o3d.geometry.PointCloud()
         target_point_cloud = o3d.geometry.PointCloud()
@@ -255,21 +153,7 @@ for i in range(0, frame_count):
             # 將 3D 點添加到點雲中
             target_point_cloud.points.extend(o3d.utility.Vector3dVector(target_points_3d))
 
-        save_xy_file(point_cloud, 'point_cloud.xy')
-        save_xy_file(target_point_cloud, 'target_point_cloud.xy')
-
-        # Example usage
-        # Define source and target point sets
-        # X = np.loadtxt("point_cloud.xy ")
-        # Y = np.loadtxt("target_point_cloud.xy")
-        #
-        # # Run ICP
-        # R, T = icp_2d(X, Y)
-        #
-        # print("Rotation matrix:")
-        # print(R)
-        # print("Translation vector:")
-        # print(T)
+        print(f"Angle {i}")
         print(rotation_angle)
 
         color = (0, 255, 0)  # BGR
@@ -308,30 +192,70 @@ for i in range(0, frame_count):
         for i in range(len(center_points) - 1):
             cv.line(img3, tuple(map(int, center_points[i])), tuple(map(int, center_points[i + 1])), color2, 10)
         #存進檔案中
-        frame_file = os.path.join('UAV_path-book', f'path_{total_path}.jpg')
+        frame_file = os.path.join('UAV_path', f'path_{total_path}.jpg')
         cv2.imwrite(frame_file, img3)
         total_path += 1
         print("------------")
     else:
         print(f"Not enough matches are found in frame {i} - {len(good)}/{MIN_MATCH_COUNT}")
 
+# SHOW
+image_folder = "UAV_path"
+image_folder2 = "output_frames"
+
+image_files = [os.path.join(image_folder, file) for file in os.listdir(image_folder) if os.path.isfile(os.path.join(image_folder, file))]
+image_files2 = [os.path.join(image_folder2, file) for file in os.listdir(image_folder2) if os.path.isfile(os.path.join(image_folder2, file))]
+
+# 螢幕寬度為1920
+screen_width = 1920
+
+# 移動到左半螢幕
+cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
+cv2.moveWindow('Image', 0, 0)
+# 移動動右半螢幕
+cv2.namedWindow('Image2', cv2.WINDOW_NORMAL)
+cv2.moveWindow('Image2', 960, 0)
 
 
+for i in range(0,total_frames):
+    image = cv2.imread(f'UAV_path/path_{i}.jpg',1)
+    # 取得影像的寬度和高度，計算影像的長寬比
+    height, width, _ = image.shape
+    aspect_ratio = width / height
+
+    # 將影像寬度調整為螢幕寬度的一半，高度按比例縮放
+    new_width = screen_width // 2
+    new_height = int(new_width / aspect_ratio)
+    # 縮放圖像大小
+    resized_image = cv2.resize(image, (new_width, new_height))
+    image_name = os.path.basename(f'UAV_path/path_{i}.jpg')
+    # 在視窗中顯示影像名稱顯示縮放後的圖片
+    cv2.setWindowTitle('Image', image_name)
+    cv2.imshow('Image', resized_image)
 
 
-# 逐個處理每個方框
-# for idx, box in enumerate(all_boxes):
-#     # 提取方框的範圍
-#     x, y, w, h = cv.boundingRect(box)
-#
-#     # 從原始圖像中提取方框內的圖像
-#     cropped_img = img[y:y+h, x:x+w]
-#
-#     # 將提取的圖像保存為 JPG 文件
-#     cv.imwrite(f"C:\\Users\\small\\yolov5-master\\img\\prtimg\\cropped_image_{idx}.jpg", cropped_img)
+    image2 = cv2.imread(f'output_frames/frame_{i}.jpg',1)
+    if image2 is None:
+        print(f"Unable to read image: output_frames/frame_{i}.jpg")
+        continue
+    # 获取图像的宽度和高度，計算影像的長寬比
+    height2, width2, _ = image2.shape
+    aspect_ratio2 = width2 / height2
 
+    # 將影像寬度調整為螢幕寬度的一半，高度按比例縮放
+    new_height2 = int(new_width / aspect_ratio2)
+    resized_image2 = cv2.resize(image2, (new_width, new_height2))
+    # 獲得名字
+    image_name2 = os.path.basename(f'output_frames/frame_{i}.jpg')
+    # 顯示圖像名稱
+    cv2.setWindowTitle('Image2', image_name2)
+    cv2.imshow('Image2', resized_image2)
+    # 等待0.4秒
+    cv2.waitKey(500)
 
-# 將特徵點的 x 和 y 坐標添加到點雲中，並將 z 坐標設置為 0
+print(aspect_ratio)
+print(aspect_ratio2)
+cv2.destroyAllWindows()
 
 
 
